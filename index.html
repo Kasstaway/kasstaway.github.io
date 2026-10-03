@@ -303,10 +303,9 @@
 
     <div class="card comic">
       <h2>today's heathcliff</h2>
-      <!-- This pulls from the daily scraper workflow — see comics/heathcliff/latest.png in the automation repo,
-           copied into this site repo's /comics folder (or fetched from wherever you decide to publish it). -->
-      <img src="comics/heathcliff/latest.png" alt="Today's Heathcliff comic strip" onerror="this.replaceWith(Object.assign(document.createElement('div'), {textContent: 'comic not loaded yet — check the scraper workflow', style: 'padding:24px;text-align:center;color:var(--ink-soft);font-family:IBM Plex Mono, monospace;font-size:13px;'}))">
-      <div class="caption">refreshed daily by a little script, not by me</div>
+      <img id="heathcliff" alt="Today's Heathcliff comic strip" style="display:none">
+      <p id="heathcliff-fallback">Today's strip isn't up yet — <a href="https://www.gocomics.com/heathcliff" target="_blank" rel="noopener">read it on GoComics</a>.</p>
+      <div class="caption">updated daily · Heathcliff © Heathcliff Enterprises, Inc.</div>
     </div>
 
     <div class="card guestbook">
@@ -329,6 +328,25 @@
     // For a real visitor count you'd need a backend or a service like goatcounter.com.
     document.getElementById('counter').textContent =
       '👁 you are visitor #' + String(Math.floor(Math.random() * 9000) + 1000).padStart(6, '0');
+  </script>
+  <script>
+    (function () {
+      var img = document.getElementById('heathcliff');
+      var fallback = document.getElementById('heathcliff-fallback');
+      var exts = ['jpg', 'png', 'gif'];
+      function tryNext(i) {
+        if (i >= exts.length) return;
+        var probe = new Image();
+        probe.onload = function () {
+          img.src = probe.src;
+          img.style.display = 'block';
+          fallback.style.display = 'none';
+        };
+        probe.onerror = function () { tryNext(i + 1); };
+        probe.src = 'comics/today.' + exts[i] + '?v=' + Date.now();
+      }
+      tryNext(0);
+    })();
   </script>
 </body>
 </html>

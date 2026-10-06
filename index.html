@@ -115,19 +115,9 @@
     h1 { font-size: 46px; }
   }
 
-  /* paint lines wiggle when moused over (JS adds .wiggle on pointerenter) */
-  .decor .drip { pointer-events: all; transform-box: fill-box; transform-origin: 50% 0; }
-  .decor .drip path { stroke: rgba(0,0,0,0); stroke-width: 16px; }
-  .decor .drip.wiggle { animation: drip-wiggle .9s ease-in-out; }
-  @keyframes drip-wiggle {
-    0%   { transform: rotate(0) skewX(0); }
-    16%  { transform: rotate(2.6deg) skewX(-4deg); }
-    34%  { transform: rotate(-2.2deg) skewX(3.4deg); }
-    52%  { transform: rotate(1.6deg) skewX(-2.2deg); }
-    72%  { transform: rotate(-.9deg) skewX(1.2deg); }
-    100% { transform: rotate(0) skewX(0); }
-  }
-  @media (prefers-reduced-motion: reduce) { .decor .drip.wiggle { animation: none; } }
+  /* paint lines wriggle like worms while the mouse is over them (see script at the bottom) */
+  .decor .drip { pointer-events: all; }
+  .decor .drip path { stroke: rgba(0,0,0,0); stroke-width: 24px; }
 </style>
 </head>
 <body>
@@ -211,11 +201,53 @@
     })();
   </script>
   <script>
-    // Paint lines wiggle once each time the mouse passes over them.
+    // Paint lines wriggle like worms for as long as the mouse is over them, then settle back.
     (function () {
-      document.querySelectorAll('.decor .drip').forEach(function (d) {
-        d.addEventListener('pointerenter', function () { d.classList.add('wiggle'); });
-        d.addEventListener('animationend', function () { d.classList.remove('wiggle'); });
+      if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var AMP = 4.5, WAVELEN = 70, HZ = 1.8;
+      document.querySelectorAll('.decor .drip').forEach(function (drip) {
+        var parts = [].map.call(drip.querySelectorAll('path'), function (el) {
+          return { el: el, d: el.getAttribute('d'), n: el.getAttribute('d').match(/-?\d+\.?\d*/g).map(Number) };
+        });
+        // main axis of the line (top point to bottom point) and the sideways direction
+        var top = null, bot = null;
+        parts.forEach(function (p) {
+          for (var i = 0; i < p.n.length; i += 2) {
+            if (!top || p.n[i + 1] < top[1]) top = [p.n[i], p.n[i + 1]];
+            if (!bot || p.n[i + 1] > bot[1]) bot = [p.n[i], p.n[i + 1]];
+          }
+        });
+        var ax = bot[0] - top[0], ay = bot[1] - top[1], len = Math.hypot(ax, ay) || 1;
+        ax /= len; ay /= len;
+        var nx = -ay, ny = ax;
+        var gain = 0, target = 0, running = false, t0 = 0, last = 0;
+
+        function draw(time) {
+          var dt = Math.min((time - last) / 1000, 0.05); last = time;
+          gain += (target - gain) * (1 - Math.exp(-dt * (target ? 9 : 6)));
+          var ph = 2 * Math.PI * HZ * (time - t0) / 1000;
+          parts.forEach(function (p) {
+            var out = 'M';
+            for (var i = 0; i < p.n.length; i += 2) {
+              var x = p.n[i], y = p.n[i + 1];
+              var s = (x - top[0]) * ax + (y - top[1]) * ay;                 // distance down the line
+              var env = Math.min(1, 0.3 + s / 120);                           // top end moves a little less
+              var off = gain * AMP * env * Math.sin(2 * Math.PI * s / WAVELEN - ph);
+              out += (i ? ' L' : '') + (x + nx * off).toFixed(1) + ' ' + (y + ny * off).toFixed(1);
+            }
+            p.el.setAttribute('d', out + ' Z');
+          });
+          if (target === 0 && gain < 0.02) {
+            parts.forEach(function (p) { p.el.setAttribute('d', p.d); });
+            running = false; return;
+          }
+          requestAnimationFrame(draw);
+        }
+        drip.addEventListener('pointerenter', function () {
+          target = 1;
+          if (!running) { running = true; t0 = last = performance.now(); requestAnimationFrame(draw); }
+        });
+        drip.addEventListener('pointerleave', function () { target = 0; });
       });
     })();
   </script>

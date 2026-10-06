@@ -105,17 +105,10 @@
     display: flex; align-items: center; gap: 10px; white-space: nowrap;
     color: #f3e9ee; font-family: "Courier Prime", monospace; font-weight: 700; font-size: 15px; line-height: 1;
   }
-  .counter .eyes { display: flex; gap: 3px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .counter .eyes { display: flex; gap: 3px; cursor: default; -webkit-tap-highlight-color: transparent; }
   .counter .eye { display: block; width: 26px; height: 17px; flex: none; overflow: visible; }
-  .counter .eye .lid { transform-box: view-box; transform-origin: 13px 8.5px; }
-  .counter .eyes.blink .lid { animation: blink .42s ease-in-out; }
-  .counter .eye .iris { transition: transform .18s ease-out; }
-  @keyframes blink {
-    0%   { transform: scaleY(1); }
-    40%  { transform: scaleY(.06); }
-    55%  { transform: scaleY(.06); }
-    100% { transform: scaleY(1); }
-  }
+  /* the blink and the eye movement are drawn by the script below (SVG attributes, not CSS animations),
+     so the browser never re-renders the counter text while the eyes move */
   /* not enough room beside the title: sit under the welcome text instead */
   @media (max-width: 780px) {
     header.card { flex-wrap: wrap; row-gap: 14px; }
@@ -247,39 +240,64 @@
 
   <script>
     // The counter's eyes blink when moused over or tapped, and (desktop only) look towards the mouse.
+    // Everything is animated by changing SVG transform attributes in one requestAnimationFrame loop.
     (function () {
       var pair = document.querySelector('.counter .eyes');
       if (!pair) return;
-      function blink() { pair.classList.remove('blink'); void pair.getBoundingClientRect(); pair.classList.add('blink'); }
-      pair.addEventListener('animationend', function () { pair.classList.remove('blink'); });
+      var eyes = [].slice.call(pair.querySelectorAll('.eye')).map(function (el) {
+        return { el: el, lid: el.querySelector('.lid'), iris: el.querySelector('.iris'), x: 0, y: 0, tx: 0, ty: 0 };
+      });
+      var BLINK_MS = 420, blinkStart = -1;
+      var MAX_X = 4.6, MAX_Y = 2.2;   // how far an iris can move (in the eye's 26 x 17 drawing units)
+      var NEAR = 40, RAMP = 70;       // within NEAR px of the eyes they look straight ahead; full turn RAMP px further out
+      var mx = null, my = null, running = false, last = 0;
+
+      function lidScale(t) {           // 0..1 through the blink -> how open the eye is (1 open, .06 shut)
+        var e = function (u) { return u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; };
+        if (t < .40) return 1 - .94 * e(t / .40);
+        if (t < .55) return .06;
+        return .06 + .94 * e((t - .55) / .45);
+      }
+      function aim() {
+        var pr = pair.getBoundingClientRect();
+        var near = mx === null || Math.hypot(mx - (pr.left + pr.width / 2), my - (pr.top + pr.height / 2)) < NEAR;
+        eyes.forEach(function (o) {
+          o.tx = 0; o.ty = 0;
+          if (near) return;
+          var r = o.el.getBoundingClientRect();
+          var vx = mx - (r.left + r.width / 2), vy = my - (r.top + r.height / 2);
+          var d = Math.hypot(vx, vy);
+          var k = Math.max(0, Math.min(1, (d - NEAR) / RAMP)) / (d || 1);
+          o.tx = vx * k * MAX_X; o.ty = vy * k * MAX_Y;
+        });
+      }
+      function frame(now) {
+        var dt = Math.min(now - last, 50); last = now;
+        var a = 1 - Math.exp(-dt / 60);   // smooth glide towards the target (~0.18s to settle)
+        var busy = false, sy = 1;
+        if (blinkStart >= 0) {
+          var t = (now - blinkStart) / BLINK_MS;
+          if (t >= 1) blinkStart = -1; else { sy = lidScale(t); busy = true; }
+        }
+        eyes.forEach(function (o) {
+          o.x += (o.tx - o.x) * a; o.y += (o.ty - o.y) * a;
+          if (Math.abs(o.tx - o.x) < .01 && Math.abs(o.ty - o.y) < .01) { o.x = o.tx; o.y = o.ty; } else busy = true;
+          o.iris.setAttribute('transform', 'translate(' + o.x.toFixed(2) + ' ' + o.y.toFixed(2) + ')');
+          o.lid.setAttribute('transform', sy === 1 ? '' : 'translate(0 ' + (8.5 * (1 - sy)).toFixed(3) + ') scale(1 ' + sy.toFixed(3) + ')');
+        });
+        if (busy) requestAnimationFrame(frame); else running = false;
+      }
+      function kick() { if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); } }
+      function blink() { blinkStart = performance.now(); kick(); }
+
       pair.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') blink(); });
       pair.addEventListener('click', blink);   // taps on phones / tablets (and clicks)
 
       if (!window.matchMedia || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-      var eyes = [].slice.call(pair.querySelectorAll('.eye'));
-      var MAX_X = 4.6, MAX_Y = 2.2;   // how far an iris can move (in the eye's 26 x 17 drawing units)
-      var NEAR = 40, RAMP = 70;       // within NEAR px of the eyes they look straight ahead; full turn RAMP px further out
-      var mx = null, my = null, queued = false;
-      function update() {
-        queued = false;
-        var pr = pair.getBoundingClientRect();
-        var near = mx === null || Math.hypot(mx - (pr.left + pr.width / 2), my - (pr.top + pr.height / 2)) < NEAR;
-        eyes.forEach(function (eye) {
-          var dx = 0, dy = 0;
-          if (!near) {
-            var r = eye.getBoundingClientRect();
-            var vx = mx - (r.left + r.width / 2), vy = my - (r.top + r.height / 2);
-            var d = Math.hypot(vx, vy);
-            var k = Math.max(0, Math.min(1, (d - NEAR) / RAMP)) / (d || 1);
-            dx = vx * k * MAX_X; dy = vy * k * MAX_Y;
-          }
-          eye.querySelector('.iris').setAttribute('transform', 'translate(' + dx.toFixed(2) + ' ' + dy.toFixed(2) + ')');
-        });
-      }
-      function queue() { if (!queued) { queued = true; requestAnimationFrame(update); } }
-      document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; queue(); });
-      document.addEventListener('mouseout', function (e) { if (!e.relatedTarget) { mx = my = null; queue(); } });   // mouse left the window
-      window.addEventListener('scroll', queue, { passive: true });
+      function look() { aim(); kick(); }
+      document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; look(); });
+      document.addEventListener('mouseout', function (e) { if (!e.relatedTarget) { mx = my = null; look(); } });   // mouse left the window
+      window.addEventListener('scroll', look, { passive: true });
     })();
 
     // Real visitor counter (GoatCounter, homepage only).

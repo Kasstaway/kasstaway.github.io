@@ -102,10 +102,21 @@
   /* visitor counter: small stitched patch at the bottom left, below the guestbook */
   .card.counter {
     align-self: flex-start; transform: rotate(-.6deg);
+    display: flex; align-items: center; gap: 9px;
     padding: 12px 22px; white-space: nowrap;
     color: #f3e9ee; font-family: "Courier Prime", monospace; font-weight: 700; font-size: 15px; line-height: 1;
   }
-  .counter .eye { display: inline-block; position: relative; top: 2px; margin-right: 6px; }
+  /* drawn eye (same on every device, unlike the emoji); blinks on hover / tap */
+  .counter .eye { display: block; width: 26px; height: 17px; flex: none; overflow: visible; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .counter .eye .lid { transform-box: view-box; transform-origin: 13px 8.5px; }
+  .counter .eye.blink .lid { animation: blink .42s ease-in-out; }
+  .counter .eye .iris { transition: transform .18s ease-out; }
+  @keyframes blink {
+    0%   { transform: scaleY(1); }
+    40%  { transform: scaleY(.06); }
+    55%  { transform: scaleY(.06); }
+    100% { transform: scaleY(1); }
+  }
 
   /* red sequin flower tucked just left of the counter, level with the gap above it (moves with the counter) */
   .counter .sequin { position: absolute; left: -62px; top: -38px; width: 50px; height: 50px; overflow: visible; pointer-events: none; }
@@ -196,7 +207,7 @@
       <div class="note">plain static pages can't save messages by themselves — see the setup guide for how to add a real one</div>
     </div>
 
-    <div class="card counter"><svg class="sequin" viewBox="-25 -25 50 50" aria-hidden="true"><g transform="scale(-1 1)"><ellipse cx='12.1' cy='0.0' rx='11.0' ry='7.9' transform='rotate(0 12.1 0.0)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='3.7' cy='11.5' rx='11.0' ry='7.9' transform='rotate(72 3.7 11.5)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='-9.8' cy='7.1' rx='11.0' ry='7.9' transform='rotate(144 -9.8 7.1)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='-9.8' cy='-7.1' rx='11.0' ry='7.9' transform='rotate(216 -9.8 -7.1)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='3.7' cy='-11.5' rx='11.0' ry='7.9' transform='rotate(288 3.7 -11.5)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><circle cx='0.0' cy='0.0' r='4.0' fill='#7a1a14'/><ellipse cx='-5.5' cy='-6.6' rx='4.8' ry='2.2' fill='rgba(255,255,255,.4)' transform='rotate(-30 -5.5 -6.6)'/></g></svg><span class="eye" aria-hidden="true">👁</span><span id="counter">You are visitor #…</span></div>
+    <div class="card counter"><svg class="sequin" viewBox="-25 -25 50 50" aria-hidden="true"><g transform="scale(-1 1)"><ellipse cx='12.1' cy='0.0' rx='11.0' ry='7.9' transform='rotate(0 12.1 0.0)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='3.7' cy='11.5' rx='11.0' ry='7.9' transform='rotate(72 3.7 11.5)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='-9.8' cy='7.1' rx='11.0' ry='7.9' transform='rotate(144 -9.8 7.1)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='-9.8' cy='-7.1' rx='11.0' ry='7.9' transform='rotate(216 -9.8 -7.1)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><ellipse cx='3.7' cy='-11.5' rx='11.0' ry='7.9' transform='rotate(288 3.7 -11.5)' fill='#e5392b' stroke='rgba(90,10,10,.5)'/><circle cx='0.0' cy='0.0' r='4.0' fill='#7a1a14'/><ellipse cx='-5.5' cy='-6.6' rx='4.8' ry='2.2' fill='rgba(255,255,255,.4)' transform='rotate(-30 -5.5 -6.6)'/></g></svg><svg class="eye" viewBox="0 0 26 17" aria-hidden="true"><g class="lid"><path d="M1.5 8.5 Q13 -3.5 24.5 8.5 Q13 20.5 1.5 8.5 Z" fill="#f3e9ee"/><clipPath id="eye-white"><path d="M1.5 8.5 Q13 -3.5 24.5 8.5 Q13 20.5 1.5 8.5 Z"/></clipPath><g clip-path="url(#eye-white)"><g class="iris"><circle cx="13" cy="8.5" r="4.6" fill="#ff5b9a"/><circle cx="13" cy="8.5" r="2.1" fill="#141012"/><circle cx="14.6" cy="6.9" r="1" fill="#fff"/></g></g></g></svg><span id="counter">You are visitor #…</span></div>
 
 
   </div>
@@ -219,6 +230,37 @@
   </div>
 
   <script>
+    // The counter's eye blinks when moused over or tapped.
+    (function () {
+      var eye = document.querySelector('.counter .eye');
+      if (!eye) return;
+      function blink() { eye.classList.remove('blink'); void eye.getBoundingClientRect(); eye.classList.add('blink'); }
+      eye.addEventListener('animationend', function () { eye.classList.remove('blink'); });
+      eye.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') blink(); });
+      eye.addEventListener('click', blink);   // taps on phones / tablets (and clicks)
+
+      // Desktop only: the iris looks towards the mouse, and back to the middle when the mouse is close.
+      if (!window.matchMedia || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+      var iris = eye.querySelector('.iris');
+      var MAX_X = 4.6, MAX_Y = 2.2;   // how far the iris can move (in the eye's 26 x 17 drawing units)
+      var NEAR = 40, RAMP = 70;       // within NEAR px it looks straight ahead; full turn RAMP px further out
+      var mx = null, my = null, queued = false;
+      function look(dx, dy) { iris.setAttribute('transform', 'translate(' + dx.toFixed(2) + ' ' + dy.toFixed(2) + ')'); }
+      function update() {
+        queued = false;
+        if (mx === null) { look(0, 0); return; }
+        var r = eye.getBoundingClientRect();
+        var vx = mx - (r.left + r.width / 2), vy = my - (r.top + r.height / 2);
+        var d = Math.hypot(vx, vy);
+        var k = Math.max(0, Math.min(1, (d - NEAR) / RAMP)) / (d || 1);
+        look(vx * k * MAX_X, vy * k * MAX_Y);
+      }
+      function queue() { if (!queued) { queued = true; requestAnimationFrame(update); } }
+      document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; queue(); });
+      document.addEventListener('mouseout', function (e) { if (!e.relatedTarget) { mx = my = null; queue(); } });   // mouse left the window
+      window.addEventListener('scroll', queue, { passive: true });
+    })();
+
     // Real visitor counter (GoatCounter, homepage only).
     // count.js records this visit; the number shown is how many unique visitors the homepage has had.
     // GoatCounter counts each person once per ~8 hours and caches the total for up to 4 hours.

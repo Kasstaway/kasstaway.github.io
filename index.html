@@ -161,21 +161,20 @@
     .wrap { pointer-events: none; }
     .wrap > * { pointer-events: auto; }
   }
-  /* "bisexual": click / tap for a smooth horizontal shimmer through the bi pride flag colours */
+  /* "bisexual": click / tap for a smooth horizontal wave of the bi pride flag colours.
+     Each letter only animates its colour (no clipping / transparent fill), so the glyphs never change shape. */
   .bi { cursor: pointer; }
-  .bi.shimmer {
-    background-image: linear-gradient(90deg,
-      var(--bi-base) 0%, var(--bi-base) 14%,
-      #D60270 24%, #9B4F96 38%, #0038A8 50%, #9B4F96 62%, #D60270 76%,
-      var(--bi-base) 86%, var(--bi-base) 100%);
-    background-size: 300% 100%;
-    background-repeat: no-repeat;
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent; color: transparent;
-    animation: bi-shimmer 2.4s ease-in-out 1 both;
+  .bi.shimmer > span { animation: bi-letter 1.6s linear both; animation-delay: calc(var(--i) * 85ms); }
+  @keyframes bi-letter {
+    0%   { color: var(--bi-base); }
+    16%  { color: #D60270; }
+    33%  { color: #9B4F96; }
+    50%  { color: #0038A8; }
+    67%  { color: #9B4F96; }
+    84%  { color: #D60270; }
+    100% { color: var(--bi-base); }
   }
-  @keyframes bi-shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
-  @media (prefers-reduced-motion: reduce) { .bi.shimmer { animation-duration: 0.01s; } }
+  @media (prefers-reduced-motion: reduce) { .bi.shimmer > span { animation-duration: 0.01s; animation-delay: 0s; } }
 </style>
 </head>
 <body>
@@ -378,18 +377,29 @@
     })();
   </script>
   <script>
-    // Click / tap / Enter on "bisexual" plays the bi-flag shimmer once.
+    // Click / tap / Enter on "bisexual" plays the bi-flag colour wave once (letters change colour only).
     (function () {
       document.querySelectorAll('.bi').forEach(function (el) {
+        var word = el.textContent;
+        el.setAttribute('aria-label', word);
+        el.textContent = '';
+        word.split('').forEach(function (ch, i) {
+          var sp = document.createElement('span');
+          sp.setAttribute('aria-hidden', 'true');
+          sp.style.setProperty('--i', i);
+          sp.textContent = ch;
+          el.appendChild(sp);
+        });
+        var last = el.lastChild;
         function go() {
           el.classList.remove('shimmer');
           el.style.setProperty('--bi-base', getComputedStyle(el).color);
-          void el.offsetWidth;                                  // restart the animation if clicked again
+          void el.offsetWidth;                                  // restart if clicked again
           el.classList.add('shimmer');
         }
         el.addEventListener('click', go);
         el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-        el.addEventListener('animationend', function () { el.classList.remove('shimmer'); });
+        last.addEventListener('animationend', function () { el.classList.remove('shimmer'); });
       });
     })();
   </script>

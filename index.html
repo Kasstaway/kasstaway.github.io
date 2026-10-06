@@ -6,7 +6,7 @@
 <title>Kasstaway</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Permanent+Marker&family=Caveat:wght@700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
   body {
@@ -128,7 +128,9 @@
   /* Bobs & Bits: grid of icons, six per row; new rows simply add below */
   .bits-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px 16px; }
   .bit { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #f3e9ee; outline: none; }
-  .bit img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain; background: #000; border-radius: 2px; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .bit img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain; background: #141012; }
+  /* Permanent Marker draws & like a +, so the ampersand uses Caveat bold */
+  .bits h2 .amp { font-family: "Caveat", "Courier Prime", cursive; font-weight: 700; font-size: 1.2em; line-height: 1; }
   .bit-label { margin-top: 8px; min-height: 1.4em; font-size: 15px; opacity: 0; transition: opacity .15s; }
   .bit:hover .bit-label, .bit:focus-visible .bit-label { opacity: 1; }
   .bit:focus-visible img { outline: 3px solid #ffd84a; outline-offset: 2px; }
@@ -163,7 +165,7 @@
     </div>
 
     <div class="card bits">
-      <h2>Bobs &amp; Bits</h2>
+      <h2>Bobs <span class="amp">&amp;</span> Bits</h2>
       <div class="bits-grid">
         <a class="bit" href="/heathcliff/" aria-label="Heathcliff">
           <img src="bobs/heathcliff-still.png" data-still="bobs/heathcliff-still.png" data-gif="bobs/heathcliff.gif" alt="Heathcliff" width="750" height="750">

@@ -161,6 +161,21 @@
     .wrap { pointer-events: none; }
     .wrap > * { pointer-events: auto; }
   }
+  /* "bisexual": click / tap for a smooth horizontal shimmer through the bi pride flag colours */
+  .bi { cursor: pointer; }
+  .bi.shimmer {
+    background-image: linear-gradient(90deg,
+      var(--bi-base) 0%, var(--bi-base) 14%,
+      #D60270 24%, #9B4F96 38%, #0038A8 50%, #9B4F96 62%, #D60270 76%,
+      var(--bi-base) 86%, var(--bi-base) 100%);
+    background-size: 300% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    animation: bi-shimmer 2.4s ease-in-out 1 both;
+  }
+  @keyframes bi-shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+  @media (prefers-reduced-motion: reduce) { .bi.shimmer { animation-duration: 0.01s; } }
 </style>
 </head>
 <body>
@@ -188,7 +203,7 @@
 
     <div class="card">
       <h2>What am I?</h2>
-      <p>Good question. I'm Kass - Classic bisexual disaster, somewhat of a luddite and enjoyer of unrepentant whimsey. Pleased to meet you!</p>
+      <p>Good question. I'm Kass - Classic <span class="bi" role="button" tabindex="0" title="click me">bisexual</span> disaster, somewhat of a luddite and enjoyer of unrepentant whimsey. Pleased to meet you!</p>
       <p>I live in a motorhome to avoid paying rent and to be employed as little as possible. The evil little slab in my pocket constantly wants me to buy things, so I've reverted to technology that annoys me <em>slightly</em> less.</p>
       <p>I'm not a huge fan of how social media works these days, so this site is my way of vomiting whatever silly things I'm doing in to the digital void. I hope you enjoy it, but if you don't then ALT+F4 will get this gaudy mess out of your sight very quickly.</p>
     </div>
@@ -359,6 +374,22 @@
         if (small.addEventListener) small.addEventListener('change', rest); else if (small.addListener) small.addListener(rest);
         a.addEventListener('mouseenter', play); a.addEventListener('focus', play);
         a.addEventListener('mouseleave', rest); a.addEventListener('blur', rest);
+      });
+    })();
+  </script>
+  <script>
+    // Click / tap / Enter on "bisexual" plays the bi-flag shimmer once.
+    (function () {
+      document.querySelectorAll('.bi').forEach(function (el) {
+        function go() {
+          el.classList.remove('shimmer');
+          el.style.setProperty('--bi-base', getComputedStyle(el).color);
+          void el.offsetWidth;                                  // restart the animation if clicked again
+          el.classList.add('shimmer');
+        }
+        el.addEventListener('click', go);
+        el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+        el.addEventListener('animationend', function () { el.classList.remove('shimmer'); });
       });
     })();
   </script>

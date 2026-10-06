@@ -144,6 +144,7 @@
   .bit img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain; background: #141012; }
   .bit-label { margin-top: 8px; min-height: 1.4em; font-size: 15px; opacity: 0; transition: opacity .15s; }
   .bit:hover .bit-label, .bit:focus-visible .bit-label { opacity: 1; }
+  @media (max-width: 900px) { .bit-label { opacity: 1; } }   /* phones: titles always showing */
   .bit:focus-visible img { outline: 3px solid #ffd84a; outline-offset: 2px; }
 
   /* phones and small tablets: the side decorations hug the screen edges (the desktop ones don't fit) */
@@ -344,8 +345,12 @@
         var still = img.getAttribute('data-still'), gif = img.getAttribute('data-gif');
         var a = img.closest('a');
         new Image().src = gif;                                   // warm the cache so the gif starts straight away
+        // phones / small screens (no hover): the gif plays all the time
+        var small = window.matchMedia('(max-width: 900px)');
         function play() { img.src = gif; }
-        function rest() { img.src = still; }
+        function rest() { img.src = small.matches ? gif : still; }
+        rest();
+        if (small.addEventListener) small.addEventListener('change', rest); else if (small.addListener) small.addListener(rest);
         a.addEventListener('mouseenter', play); a.addEventListener('focus', play);
         a.addEventListener('mouseleave', rest); a.addEventListener('blur', rest);
       });

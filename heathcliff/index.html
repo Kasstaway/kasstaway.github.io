@@ -124,6 +124,8 @@
   .decor .sl { transform: translateX(calc(-1 * var(--s))); }
   .decor .sr { transform: translateX(var(--s)); }
   .comic img { max-width: 632px; margin-left: auto; margin-right: auto; }
+  /* scale the strip down (display size only - the image file is untouched) so the whole card fits on screen */
+  .comic img { width: auto; max-width: 100%; max-height: clamp(260px, calc(100vh - 310px), 720px); }
 
   .comic h2 { color: #5fd0c2; }
   /* "Take me home": small module top-left of every page other than the homepage */

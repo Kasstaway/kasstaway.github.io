@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kasstaway</title>
+<title>Heathcliff · Kasstaway</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
@@ -125,13 +125,12 @@
   .decor .sr { transform: translateX(var(--s)); }
   .comic img { max-width: 632px; margin-left: auto; margin-right: auto; }
 
-  /* Bobs & Bits: grid of icons, six per row; new rows simply add below */
-  .bits-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px 16px; }
-  .bit { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #f3e9ee; outline: none; }
-  .bit img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain; background: #000; border-radius: 2px; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
-  .bit-label { margin-top: 8px; min-height: 1.4em; font-size: 15px; opacity: 0; transition: opacity .15s; }
-  .bit:hover .bit-label, .bit:focus-visible .bit-label { opacity: 1; }
-  .bit:focus-visible img { outline: 3px solid #ffd84a; outline-offset: 2px; }
+  .comic h2 { color: #5fd0c2; }
+  /* "Take me home": small module top-left of every page other than the homepage */
+  .homebtn { align-self: flex-start; padding: 12px 24px; margin-bottom: -12px; font-family: "Permanent Marker", cursive; font-size: 19px; line-height: 1; color: #ff5b9a; text-decoration: none; transition: color .15s, transform .15s; }
+  .homebtn:hover, .homebtn:focus-visible { color: #ffd84a; }
+  /* shorter page than the homepage: leave room so the bottom flower cluster stays below the cards */
+  .wrap { padding-bottom: 250px; }
 </style>
 </head>
 <body>
@@ -148,44 +147,14 @@
 
   <div class="wrap">
 
-    <header class="card">
-      <div>
-        <h1>Kasstaway</h1>
-        <div class="status">Hey there! It seems you've washed ashore on my strange and whimsical corner of the web. Make yourself at home and stay as long as you like. Feel free to eat whatever from the fridge.</div>
-      </div>
-    </header>
+    <a class="card homebtn" href="/">Take me home</a>
 
-    <div class="card">
-      <h2>What am I?</h2>
-      <p>Good question. I'm Kass - Classic bisexual disaster, somewhat of a luddite and enjoyer of unrepentant whimsey. Pleased to meet you!</p>
-      <p>I live in a motorhome to avoid paying rent and to be employed as little as possible. The evil little slab in my pocket constantly wants me to buy things, so I've reverted to technology that annoys me <em>slightly</em> less.</p>
-      <p>I'm not a huge fan of how social media works these days, so this site is my way of vomiting whatever silly things I'm doing in to the digital void. I hope you enjoy it, but if you don't then ALT+F4 will get this gaudy mess out of your sight very quickly.</p>
+    <div class="card comic">
+      <h2>today's heathcliff</h2>
+      <img id="heathcliff" alt="Today's Heathcliff comic strip" style="display:none">
+      <p id="heathcliff-fallback">Today's strip isn't up yet — <a href="https://www.gocomics.com/heathcliff" target="_blank" rel="noopener">read it on GoComics</a>.</p>
+      <div class="caption">updated daily · Heathcliff © Heathcliff Enterprises, Inc.</div>
     </div>
-
-    <div class="card bits">
-      <h2>Bobs &amp; Bits</h2>
-      <div class="bits-grid">
-        <a class="bit" href="/heathcliff/" aria-label="Heathcliff">
-          <img src="bobs/heathcliff-still.png" data-still="bobs/heathcliff-still.png" data-gif="bobs/heathcliff.gif" alt="Heathcliff" width="750" height="750">
-          <span class="bit-label">Heathcliff</span>
-        </a>
-      </div>
-    </div>
-
-    <div class="card guestbook">
-      <h2>guestbook</h2>
-      <textarea placeholder="say hi! (this is a placeholder — hook it up to a real form service, or remove it)"></textarea>
-      <br>
-      <button type="button" onclick="alert('Hook this up to a form service like Fillout, Tally, or a Cloudflare Worker — plain HTML/CSS can\'t store messages on its own.')">sign it</button>
-      <div class="note">plain static pages can't save messages by themselves — see the setup guide for how to add a real one</div>
-    </div>
-
-    <footer>
-      <div class="patch">
-        <span class="counter" id="counter">👁 you are visitor #000001</span>
-        <div style="margin-top:6px;">made with a text editor and a bit of nostalgia</div>
-      </div>
-    </footer>
 
   </div>
 
@@ -194,11 +163,24 @@
     <svg class="bottom" width="1000" height="260" viewBox="0 0 1000 260"><g class="sl"><g transform="translate(84 130)"><use href='#fl9' transform='translate(31 13) rotate(283) scale(0.96)'/><use href='#fl0' transform='translate(75 6) rotate(224) scale(1.23)'/><use href='#fl1' transform='translate(92 5) rotate(61) scale(1.16)'/><use href='#fl11' transform='translate(8 -5) rotate(243) scale(0.90)'/><use href='#fl5' transform='translate(70 21) rotate(27) scale(0.96)'/><use href='#fl1' transform='translate(27 6) rotate(154) scale(1.01)'/><use href='#fl12' transform='translate(9 3) rotate(117) scale(0.86)'/><use href='#fl8' transform='translate(2 5) rotate(276) scale(0.86)'/><use href='#fl3' transform='translate(-1 1) rotate(338) scale(1.13)'/><use href='#fl13' transform='translate(72 10) rotate(307) scale(1.19)'/><use href='#fl13' transform='translate(86 10) rotate(230) scale(0.88)'/><use href='#fl10' transform='translate(39 3) rotate(318) scale(1.00)'/><use href='#fl6' transform='translate(79 -3) rotate(15) scale(0.94)'/><use href='#fl4' transform='translate(39 36) rotate(252) scale(0.98)'/><use href='#fl6' transform='translate(17 1) rotate(282) scale(1.16)'/><use href='#fl4' transform='translate(27 13) rotate(326) scale(0.91)'/><use href='#fl11' transform='translate(50 5) rotate(109) scale(1.12)'/><use href='#fl12' transform='translate(86 3) rotate(313) scale(0.94)'/><use href='#fl15' transform='translate(8 -5) rotate(354) scale(1.19)'/><use href='#fl15' transform='translate(2 3) rotate(149) scale(0.88)'/><use href='#fl17' transform='translate(55 4) rotate(13) scale(1.15)'/><use href='#fl13' transform='translate(44 14) rotate(8) scale(0.94)'/><use href='#fl12' transform='translate(74 6) rotate(13) scale(0.94)'/><use href='#fl12' transform='translate(69 1) rotate(95) scale(0.87)'/><use href='#fl1' transform='translate(21 6) rotate(97) scale(1.00)'/><use href='#fl9' transform='translate(32 11) rotate(54) scale(0.97)'/><use href='#fl11' transform='translate(57 3) rotate(262) scale(1.17)'/><use href='#fl5' transform='translate(4 5) rotate(45) scale(0.88)'/><use href='#fl6' transform='translate(-2 8) rotate(26) scale(1.21)'/><use href='#fl8' transform='translate(92 1) rotate(269) scale(1.19)'/></g></g></svg>
   </div>
 
-  <script>
-    // Playful placeholder counter — purely decorative, resets every load.
-    // For a real visitor count you'd need a backend or a service like goatcounter.com.
-    document.getElementById('counter').textContent =
-      '👁 you are visitor #' + String(Math.floor(Math.random() * 9000) + 1000).padStart(6, '0');
+    <script>
+    (function () {
+      var img = document.getElementById('heathcliff');
+      var fallback = document.getElementById('heathcliff-fallback');
+      var exts = ['jpg', 'png', 'gif'];
+      function tryNext(i) {
+        if (i >= exts.length) return;
+        var probe = new Image();
+        probe.onload = function () {
+          img.src = probe.src;
+          img.style.display = 'block';
+          fallback.style.display = 'none';
+        };
+        probe.onerror = function () { tryNext(i + 1); };
+        probe.src = '/comics/today.' + exts[i] + '?v=' + Date.now();
+      }
+      tryNext(0);
+    })();
   </script>
   <script>
     // Paint lines wriggle like worms for as long as the mouse is over them, then settle back.
@@ -248,20 +230,6 @@
           if (!running) { running = true; t0 = last = performance.now(); requestAnimationFrame(draw); }
         });
         drip.addEventListener('pointerleave', function () { target = 0; });
-      });
-    })();
-  </script>
-  <script>
-    // Bobs & Bits: icons show a still picture and play their gif while hovered / focused.
-    (function () {
-      document.querySelectorAll('.bit img[data-gif]').forEach(function (img) {
-        var still = img.getAttribute('data-still'), gif = img.getAttribute('data-gif');
-        var a = img.closest('a');
-        new Image().src = gif;                                   // warm the cache so the gif starts straight away
-        function play() { img.src = gif; }
-        function rest() { img.src = still; }
-        a.addEventListener('mouseenter', play); a.addEventListener('focus', play);
-        a.addEventListener('mouseleave', rest); a.addEventListener('blur', rest);
       });
     })();
   </script>

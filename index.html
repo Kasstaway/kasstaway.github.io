@@ -535,35 +535,35 @@
     function showEmpty(text) { list.textContent = ''; var li = document.createElement('li'); li.className = 'gb-empty'; li.textContent = text; list.append(li); }
     function render(entries) {
       list.textContent = '';
-      if (!entries.length) { showEmpty('no entries yet \u2014 be the first to sign!'); return; }
+      if (!entries.length) { showEmpty('No entries yet \u2014 be the first to sign!'); return; }
       entries.forEach(function (e) { list.append(entryEl(e)); });
     }
     function load() {
       fetch(API + '/entries', { cache: 'no-store' })
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (d) { render(d.entries || []); })
-        .catch(function () { showEmpty('the guestbook couldn\u2019t load right now \u2014 try again later.'); });
+        .catch(function () { showEmpty('The guestbook couldn\u2019t load right now \u2014 try again later.'); });
     }
     msgEl.addEventListener('input', function () { countEl.textContent = msgEl.value.length + '/500'; });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var name = nameEl.value.trim(), message = msgEl.value.trim();
-      if (!name) { statusEl.textContent = 'add your name first'; nameEl.focus(); return; }
-      if (!message) { statusEl.textContent = 'write a message first'; msgEl.focus(); return; }
-      btn.disabled = true; statusEl.textContent = 'signing\u2026';
+      if (!name) { statusEl.textContent = 'Add your name first'; nameEl.focus(); return; }
+      if (!message) { statusEl.textContent = 'Write a message first'; msgEl.focus(); return; }
+      btn.disabled = true; statusEl.textContent = 'Signing\u2026';
       fetch(API + '/entries', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name, message: message, website: hpEl.value, t: opened }) })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
-          if (!res.ok) { statusEl.textContent = (res.d && res.d.error) || 'something went wrong \u2014 try again'; return; }
-          statusEl.textContent = 'thanks for signing! \u2665';
+          if (!res.ok) { statusEl.textContent = (res.d && res.d.error) || 'Something went wrong \u2014 try again'; return; }
+          statusEl.textContent = 'Thanks for signing! \u2665';
           msgEl.value = ''; countEl.textContent = '0/500';
           if (res.d.entry) {
             var empty = list.querySelector('.gb-empty'); if (empty) empty.remove();
             list.insertBefore(entryEl(res.d.entry), list.firstChild); list.scrollTop = 0;
           }
         })
-        .catch(function () { statusEl.textContent = 'couldn\u2019t reach the guestbook \u2014 try again'; })
+        .catch(function () { statusEl.textContent = 'Couldn\u2019t reach the guestbook \u2014 try again'; })
         .then(function () { btn.disabled = false; });
     });
     load();

@@ -345,12 +345,14 @@
   /* Scrolling header: one line at a time, slow, shuffled on every page load.
      The next line only enters on the right as the previous one starts leaving on the left. */
   (function () {
-    var LINES = [
+    // Lines come from the private editor (Cloudflare Worker kasstaway-header); these are used if it can't be reached.
+    var FALLBACK = [
       'welcome to kasstaway',
       'under construction forever',
       'currently parked somewhere with a view',
       'sign the guestbook'
     ];
+    function run(LINES) {
     var SPEED = 45;     // pixels per second (was roughly 120)
     var MIN_GAP = 140;  // spacing used only when a line is wider than the screen (phones)
     var box = document.querySelector('.marquee');
@@ -394,6 +396,14 @@
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
+    }
+    var started = false;
+    function go(list) { if (started) return; started = true; run(list && list.length ? list : FALLBACK); }
+    setTimeout(function () { go(null); }, 3000);
+    fetch('https://kasstaway-header.kasst98.workers.dev/lines')
+      .then(function (r) { return r.json(); })
+      .then(function (d) { go((d.lines || []).filter(function (t) { return typeof t === 'string' && t.trim(); })); })
+      .catch(function () { go(null); });
   })();
   </script>
   <script data-goatcounter="https://kasstaway.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

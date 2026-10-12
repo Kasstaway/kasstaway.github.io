@@ -147,6 +147,40 @@
     .wrap { pointer-events: none; }
     .wrap > * { pointer-events: auto; }
   }
+
+  /* calendar: pick an earlier day's strip (the page always opens on today's) */
+  .comic-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .comic-head h2 { margin: 0; }
+  .cal-ctrl { display: flex; align-items: center; gap: 6px; }
+  .cal-ctrl[hidden], .cal-btn[hidden], .cal-pop[hidden] { display: none; }
+  .cal-btn {
+    background: transparent; color: #5fd0c2; cursor: pointer;
+    border: 2px solid #5fd0c2; border-radius: 2px; padding: 2px 12px;
+    font-family: "Permanent Marker", cursive; font-size: 15px; line-height: 1.3;
+    transition: color .15s, background .15s, border-color .15s;
+  }
+  .cal-btn.cal-arrow { padding: 2px 10px; font-size: 18px; line-height: 1.1; }
+  .cal-btn:hover:not(:disabled), .cal-btn:focus-visible { color: #ffd84a; border-color: #ffd84a; outline: none; }
+  .cal-btn:disabled { opacity: .3; cursor: default; }
+  .cal-pop {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+    width: min(310px, 100%); padding: 14px 14px 12px;
+    background: #141012; border: 2px dashed #ff7fb2; border-radius: 3px;
+    box-shadow: 0 8px 18px rgba(0,0,0,.65);
+  }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .cal-month { font-family: "Permanent Marker", cursive; font-size: 20px; line-height: 1; color: #ff5b9a; text-align: center; flex: 1; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
+  .cal-dow { font-size: 12px; opacity: .6; padding-bottom: 2px; }
+  .cal-day {
+    font-family: "Courier Prime", monospace; font-size: 14px; line-height: 1; color: #f3e9ee;
+    background: transparent; border: 1px solid rgba(95,208,194,.55); border-radius: 2px;
+    aspect-ratio: 1 / 1; padding: 0; cursor: pointer;
+  }
+  .cal-day:hover:not(:disabled), .cal-day:focus-visible { background: rgba(255,127,178,.25); outline: 2px solid #ffd84a; outline-offset: 0; }
+  .cal-day:disabled { border-color: transparent; opacity: .25; cursor: default; }
+  .cal-day.sel { background: #ff7fb2; border-color: #ff7fb2; color: #141012; font-weight: 700; }
+  .cal-blank { aspect-ratio: 1 / 1; }
 </style>
 </head>
 <body>
@@ -166,7 +200,23 @@
     <a class="card homebtn" href="/">Take me home</a>
 
     <div class="card comic">
-      <h2>today's heathcliff</h2>
+      <div class="comic-head">
+        <h2 id="comic-title">today's heathcliff</h2>
+        <div class="cal-ctrl" id="cal-ctrl" hidden>
+          <button type="button" class="cal-btn cal-arrow" id="cal-prev" aria-label="Previous strip">&#8249;</button>
+          <button type="button" class="cal-btn" id="cal-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="cal-pop">calendar</button>
+          <button type="button" class="cal-btn cal-arrow" id="cal-next" aria-label="Next strip">&#8250;</button>
+          <button type="button" class="cal-btn" id="cal-today" hidden>today</button>
+        </div>
+        <div class="cal-pop" id="cal-pop" role="dialog" aria-label="Choose a day" hidden>
+          <div class="cal-nav">
+            <button type="button" class="cal-btn cal-arrow" id="cal-mprev" aria-label="Previous month">&#8249;</button>
+            <div class="cal-month" id="cal-month" aria-live="polite"></div>
+            <button type="button" class="cal-btn cal-arrow" id="cal-mnext" aria-label="Next month">&#8250;</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+      </div>
       <img id="heathcliff" alt="Today's Heathcliff comic strip" style="display:none">
       <p id="heathcliff-fallback">Today's strip isn't up yet — <a href="https://www.gocomics.com/heathcliff" target="_blank" rel="noopener">read it on GoComics</a>.</p>
       <div class="caption">updated daily · Heathcliff © Heathcliff Enterprises, Inc.</div>
@@ -193,19 +243,163 @@
     (function () {
       var img = document.getElementById('heathcliff');
       var fallback = document.getElementById('heathcliff-fallback');
+      var fallbackToday = fallback.innerHTML;
+      var title = document.getElementById('comic-title');
+      var ctrl = document.getElementById('cal-ctrl');
+      var calBtn = document.getElementById('cal-btn');
+      var prevBtn = document.getElementById('cal-prev');
+      var nextBtn = document.getElementById('cal-next');
+      var todayBtn = document.getElementById('cal-today');
+      var pop = document.getElementById('cal-pop');
+      var monthLbl = document.getElementById('cal-month');
+      var mPrev = document.getElementById('cal-mprev');
+      var mNext = document.getElementById('cal-mnext');
+      var grid = document.getElementById('cal-grid');
+
       var exts = ['jpg', 'png', 'gif'];
-      function tryNext(i) {
-        if (i >= exts.length) return;
+      var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var days = {};        // 'YYYY-MM-DD' -> archive file name
+      var order = [];       // those dates, oldest first
+      var current = null;   // null = today's (newest) strip, which is what the page always opens on
+      var viewY = 0, viewM = 0;
+      var req = 0;
+
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      function key(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
+      function parse(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+      function ord(n) { var v = n % 100; return n + (['th','st','nd','rd'][(v - 20) % 10] || ['th','st','nd','rd'][v] || 'th'); }
+      function longDate(k) { var d = parse(k); return DAYS[d.getDay()] + ' ' + ord(d.getDate()) + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear(); }
+      function shortDate(k) { var d = parse(k); return ord(d.getDate()) + ' ' + MONTHS[d.getMonth()].slice(0, 3).toLowerCase(); }
+      function newest() { return order[order.length - 1]; }
+      function effective() { return current || newest(); }
+
+      // show one image; ignore answers that arrive after a newer request
+      function show(src, alt, failHtml) {
+        var mine = ++req;
         var probe = new Image();
         probe.onload = function () {
-          img.src = probe.src;
+          if (mine !== req) return;
+          img.src = probe.src; img.alt = alt;
           img.style.display = 'block';
           fallback.style.display = 'none';
         };
-        probe.onerror = function () { tryNext(i + 1); };
-        probe.src = '/comics/today.' + exts[i] + '?v=' + Date.now();
+        probe.onerror = function () {
+          if (mine !== req) return;
+          img.style.display = 'none';
+          fallback.innerHTML = failHtml;
+          fallback.style.display = '';
+        };
+        probe.src = src;
       }
-      tryNext(0);
+
+      // today's strip: /comics/today.jpg|png|gif (exactly as before)
+      function loadToday() {
+        var mine = ++req;
+        function tryNext(i) {
+          if (i >= exts.length) {
+            if (mine !== req) return;
+            img.style.display = 'none'; fallback.innerHTML = fallbackToday; fallback.style.display = '';
+            return;
+          }
+          var probe = new Image();
+          probe.onload = function () {
+            if (mine !== req) return;
+            img.src = probe.src; img.alt = "Today's Heathcliff comic strip";
+            img.style.display = 'block'; fallback.style.display = 'none';
+          };
+          probe.onerror = function () { if (mine === req) tryNext(i + 1); };
+          probe.src = '/comics/today.' + exts[i] + '?v=' + Date.now();
+        }
+        tryNext(0);
+      }
+
+      function selectToday() {
+        current = null;
+        title.textContent = "today's heathcliff";
+        loadToday();
+        sync();
+      }
+      function selectDate(k) {
+        if (k === newest()) { selectToday(); return; }
+        current = k;
+        title.textContent = 'heathcliff · ' + shortDate(k);
+        show('/comics/archive/' + days[k], 'Heathcliff comic strip for ' + longDate(k),
+             "Sorry, that day's strip couldn't be loaded.");
+        sync();
+      }
+
+      function sync() {
+        var i = order.indexOf(effective());
+        prevBtn.disabled = i <= 0;
+        nextBtn.disabled = i >= order.length - 1;
+        todayBtn.hidden = current === null;
+        calBtn.textContent = current ? shortDate(current) : 'calendar';
+        if (!pop.hidden) render();
+      }
+
+      function render() {
+        var firstKey = order[0], lastKey = newest();
+        var first = parse(firstKey), last = parse(lastKey);
+        mPrev.disabled = viewY * 12 + viewM <= first.getFullYear() * 12 + first.getMonth();
+        mNext.disabled = viewY * 12 + viewM >= last.getFullYear() * 12 + last.getMonth();
+        monthLbl.textContent = MONTHS[viewM] + ' ' + viewY;
+        grid.innerHTML = '';
+        ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(function (n) {
+          var c = document.createElement('div'); c.className = 'cal-dow'; c.textContent = n; grid.appendChild(c);
+        });
+        var lead = (new Date(viewY, viewM, 1).getDay() + 6) % 7;   // weeks start on Monday
+        for (var b = 0; b < lead; b++) { var e = document.createElement('div'); e.className = 'cal-blank'; grid.appendChild(e); }
+        var total = new Date(viewY, viewM + 1, 0).getDate();
+        for (var d = 1; d <= total; d++) {
+          (function (k, d) {
+            var btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'cal-day'; btn.textContent = d;
+            if (days[k]) {
+              btn.setAttribute('aria-label', longDate(k));
+              if (k === effective()) { btn.classList.add('sel'); btn.setAttribute('aria-current', 'date'); }
+              btn.addEventListener('click', function () { selectDate(k); close(true); });
+            } else {
+              btn.disabled = true; btn.setAttribute('aria-label', longDate(k) + ', no strip');
+            }
+            grid.appendChild(btn);
+          })(key(viewY, viewM, d), d);
+        }
+      }
+
+      function open() {
+        var e = parse(effective());
+        viewY = e.getFullYear(); viewM = e.getMonth();
+        pop.hidden = false; calBtn.setAttribute('aria-expanded', 'true');
+        render();
+      }
+      function close(refocus) {
+        pop.hidden = true; calBtn.setAttribute('aria-expanded', 'false');
+        if (refocus) calBtn.focus();
+      }
+
+      calBtn.addEventListener('click', function () { pop.hidden ? open() : close(false); });
+      prevBtn.addEventListener('click', function () { selectDate(order[order.indexOf(effective()) - 1]); });
+      nextBtn.addEventListener('click', function () { selectDate(order[order.indexOf(effective()) + 1]); });
+      todayBtn.addEventListener('click', function () { selectToday(); close(false); });
+      mPrev.addEventListener('click', function () { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); });
+      mNext.addEventListener('click', function () { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); });
+      document.addEventListener('click', function (ev) {
+        if (!pop.hidden && !pop.contains(ev.target) && !calBtn.contains(ev.target)) close(false);
+      });
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape' && !pop.hidden) close(true);
+      });
+
+      // today's strip first; the calendar only appears once the list of saved days has loaded
+      loadToday();
+      fetch('/comics/archive/index.json?v=' + Date.now())
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (j) {
+          days = j; order = Object.keys(days).sort();
+          if (order.length > 1) { ctrl.hidden = false; sync(); }
+        })
+        .catch(function () { /* no archive yet: the page simply shows today's strip */ });
     })();
   </script>
   <script>

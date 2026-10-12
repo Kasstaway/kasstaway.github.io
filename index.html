@@ -87,17 +87,35 @@
   .comic img { display: block; width: 100%; background: #fffdf5; padding: 8px; border-radius: 2px; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
   .comic .caption { font-size: 13px; opacity: .7; margin-top: 10px; }
 
-  .guestbook textarea {
-    width: 100%; min-height: 76px; resize: vertical; padding: 10px;
+  .guestbook form { margin: 0; }
+  .guestbook input[type=text], .guestbook textarea {
+    display: block; width: 100%; box-sizing: border-box; padding: 10px;
     background: #1f1a1d; color: #f3e9ee; border: 2px dashed #5fd0c2; border-radius: 2px;
     font-family: "Courier Prime", monospace; font-size: 15px;
   }
+  .guestbook input[type=text] { margin-bottom: 10px; }
+  .guestbook textarea { min-height: 76px; resize: vertical; }
+  .guestbook input::placeholder, .guestbook textarea::placeholder { color: #f3e9ee; opacity: .5; }
+  .guestbook input:focus, .guestbook textarea:focus { outline: none; border-color: #ffd84a; }
+  .guestbook .gb-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
   .guestbook button {
-    margin-top: 10px; background: transparent; color: #ffd84a; cursor: pointer;
+    background: transparent; color: #ffd84a; cursor: pointer;
     border: 2px solid #ffd84a; border-radius: 2px; padding: 3px 20px;
     font-family: "Permanent Marker", cursive; font-size: 17px;
   }
-  .guestbook .note { font-size: 12px; opacity: .65; margin-top: 8px; }
+  .guestbook button:hover, .guestbook button:focus-visible { background: #ffd84a; color: #141012; outline: none; }
+  .guestbook button:disabled { opacity: .5; cursor: default; background: transparent; color: #ffd84a; }
+  .guestbook .gb-status { font-size: 13px; color: #ffd84a; min-height: 1em; }
+  .guestbook .gb-count { font-size: 12px; opacity: .55; margin-left: auto; }
+  .guestbook .gb-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .guestbook .gb-list { list-style: none; margin: 18px 0 0; padding: 0; max-height: 420px; overflow-y: auto; }
+  .guestbook .gb-list li { border-top: 2px dashed rgba(255,127,178,.45); padding: 12px 2px; }
+  .guestbook .gb-list li:last-child { padding-bottom: 2px; }
+  .guestbook .gb-who { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+  .guestbook .gb-name { color: #ff5b9a; font-weight: 700; word-break: break-word; }
+  .guestbook .gb-date { font-size: 12px; opacity: .55; white-space: nowrap; }
+  .guestbook .gb-msg { white-space: pre-wrap; word-break: break-word; }
+  .guestbook .gb-empty { font-size: 14px; opacity: .65; border-top: 2px dashed rgba(255,127,178,.45); padding-top: 12px; }
 
   /* visitor counter: top right of the header card, no border; two eyes that blink and follow the mouse */
   .counter {
@@ -212,10 +230,17 @@
 
     <div class="card guestbook">
       <h2>guestbook</h2>
-      <textarea placeholder="say hi! (this is a placeholder — hook it up to a real form service, or remove it)"></textarea>
-      <br>
-      <button type="button" onclick="alert('Hook this up to a form service like Fillout, Tally, or a Cloudflare Worker — plain HTML/CSS can\'t store messages on its own.')">sign it</button>
-      <div class="note">plain static pages can't save messages by themselves — see the setup guide for how to add a real one</div>
+      <form id="gb-form" autocomplete="off" novalidate>
+        <input type="text" id="gb-name" name="name" maxlength="40" placeholder="your name" aria-label="Your name" required>
+        <textarea id="gb-message" name="message" maxlength="500" placeholder="say hi!" aria-label="Your message" required></textarea>
+        <div class="gb-hp" aria-hidden="true"><label>Leave this empty <input type="text" id="gb-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div class="gb-row">
+          <button type="submit" id="gb-submit">sign it</button>
+          <span class="gb-status" id="gb-status" role="status" aria-live="polite"></span>
+          <span class="gb-count" id="gb-count">0/500</span>
+        </div>
+      </form>
+      <ul class="gb-list" id="gb-list" aria-label="Guestbook entries"></ul>
     </div>
 
 
@@ -420,6 +445,64 @@
         last.addEventListener('animationend', function () { el.classList.remove('shimmer'); });
       });
     })();
+  </script>
+  <script>
+  /* guestbook: entries are stored by the kasstaway-guestbook Cloudflare Worker */
+  (function () {
+    var API = 'https://kasstaway-guestbook.kasst98.workers.dev';
+    var form = document.getElementById('gb-form');
+    if (!form) return;
+    var nameEl = document.getElementById('gb-name'), msgEl = document.getElementById('gb-message'),
+        hpEl = document.getElementById('gb-website'), btn = document.getElementById('gb-submit'),
+        statusEl = document.getElementById('gb-status'), countEl = document.getElementById('gb-count'),
+        list = document.getElementById('gb-list');
+    var opened = Date.now();
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function fmtDate(secs) { var d = new Date(secs * 1000); return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(-2); }
+    function entryEl(e) {
+      var li = document.createElement('li'), who = document.createElement('div'), n = document.createElement('span'),
+          dt = document.createElement('span'), m = document.createElement('div');
+      who.className = 'gb-who'; n.className = 'gb-name'; dt.className = 'gb-date'; m.className = 'gb-msg';
+      n.textContent = e.name; dt.textContent = fmtDate(e.created_at); m.textContent = e.message;
+      who.append(n, dt); li.append(who, m); return li;
+    }
+    function showEmpty(text) { list.textContent = ''; var li = document.createElement('li'); li.className = 'gb-empty'; li.textContent = text; list.append(li); }
+    function render(entries) {
+      list.textContent = '';
+      if (!entries.length) { showEmpty('no entries yet \u2014 be the first to sign!'); return; }
+      entries.forEach(function (e) { list.append(entryEl(e)); });
+    }
+    function load() {
+      fetch(API + '/entries', { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function (d) { render(d.entries || []); })
+        .catch(function () { showEmpty('the guestbook couldn\u2019t load right now \u2014 try again later.'); });
+    }
+    msgEl.addEventListener('input', function () { countEl.textContent = msgEl.value.length + '/500'; });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var name = nameEl.value.trim(), message = msgEl.value.trim();
+      if (!name) { statusEl.textContent = 'add your name first'; nameEl.focus(); return; }
+      if (!message) { statusEl.textContent = 'write a message first'; msgEl.focus(); return; }
+      btn.disabled = true; statusEl.textContent = 'signing\u2026';
+      fetch(API + '/entries', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, message: message, website: hpEl.value, t: opened }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok) { statusEl.textContent = (res.d && res.d.error) || 'something went wrong \u2014 try again'; return; }
+          statusEl.textContent = 'thanks for signing! \u2665';
+          msgEl.value = ''; countEl.textContent = '0/500';
+          if (res.d.entry) {
+            var empty = list.querySelector('.gb-empty'); if (empty) empty.remove();
+            list.insertBefore(entryEl(res.d.entry), list.firstChild); list.scrollTop = 0;
+          }
+        })
+        .catch(function () { statusEl.textContent = 'couldn\u2019t reach the guestbook \u2014 try again'; })
+        .then(function () { btn.disabled = false; });
+    });
+    load();
+  })();
   </script>
 </body>
 </html>

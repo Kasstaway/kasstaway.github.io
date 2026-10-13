@@ -89,12 +89,13 @@
   .comic .caption { font-size: 13px; opacity: .7; margin-top: 10px; }
 
   .guestbook form { margin: 0; }
-  .guestbook input[type=text], .guestbook textarea {
+  .guestbook input[type=text], .guestbook input[type=password], .guestbook textarea {
     display: block; width: 100%; box-sizing: border-box; padding: 10px;
     background: #1f1a1d; color: #f3e9ee; border: 2px dashed #5fd0c2; border-radius: 2px;
     font-family: "Courier Prime", monospace; font-size: 15px;
   }
-  .guestbook input[type=text] { margin-bottom: 10px; }
+  .guestbook input[type=text], .guestbook input[type=password] { margin-bottom: 10px; }
+  .guestbook [hidden] { display: none; }
   .guestbook textarea { min-height: 76px; resize: vertical; }
   .guestbook input::placeholder, .guestbook textarea::placeholder { color: #f3e9ee; opacity: .5; }
   .guestbook input:focus, .guestbook textarea:focus { outline: none; border-color: #ffd84a; }
@@ -233,6 +234,7 @@
       <h2>guestbook</h2>
       <form id="gb-form" autocomplete="off" novalidate>
         <input type="text" id="gb-name" name="name" maxlength="40" placeholder="Your name" aria-label="Your name" required>
+        <div id="gb-keybox" hidden><input type="password" id="gb-key" name="ownerkey" placeholder="Owner key" aria-label="Owner key" autocomplete="off"></div>
         <textarea id="gb-message" name="message" maxlength="500" placeholder="Say hi!" aria-label="Your message" required></textarea>
         <div class="gb-hp" aria-hidden="true"><label>Leave this empty <input type="text" id="gb-website" name="website" tabindex="-1" autocomplete="off"></label></div>
         <div class="gb-row">
@@ -523,8 +525,11 @@
     var nameEl = document.getElementById('gb-name'), msgEl = document.getElementById('gb-message'),
         hpEl = document.getElementById('gb-website'), btn = document.getElementById('gb-submit'),
         statusEl = document.getElementById('gb-status'), countEl = document.getElementById('gb-count'),
-        list = document.getElementById('gb-list');
+        list = document.getElementById('gb-list'),
+        keyBox = document.getElementById('gb-keybox'), keyEl = document.getElementById('gb-key');
     var opened = Date.now();
+    function getKey() { try { return localStorage.getItem('kasstaway-owner-key') || ''; } catch (e) { return ''; } }
+    function setKey(k) { try { if (k) localStorage.setItem('kasstaway-owner-key', k); else localStorage.removeItem('kasstaway-owner-key'); } catch (e) {} }
 
     function pad(n) { return (n < 10 ? '0' : '') + n; }
     function fmtDate(secs) { var d = new Date(secs * 1000); return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(-2); }
@@ -553,12 +558,19 @@
       var name = nameEl.value.trim(), message = msgEl.value.trim();
       if (!name) { statusEl.textContent = 'Add your name first'; nameEl.focus(); return; }
       if (!message) { statusEl.textContent = 'Write a message first'; msgEl.focus(); return; }
+      var key = keyEl.value.trim() || getKey(), headers = { 'Content-Type': 'application/json' };
+      if (key) headers.Authorization = 'Bearer ' + key;
       btn.disabled = true; statusEl.textContent = 'Signing\u2026';
-      fetch(API + '/entries', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      fetch(API + '/entries', { method: 'POST', headers: headers,
         body: JSON.stringify({ name: name, message: message, website: hpEl.value, t: opened }) })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); })
         .then(function (res) {
-          if (!res.ok) { statusEl.textContent = (res.d && res.d.error) || 'Something went wrong \u2014 try again'; return; }
+          if (!res.ok) {
+            if (res.d && res.d.needKey) { keyBox.hidden = false; keyEl.focus(); }
+            if (res.status === 401) { setKey(''); keyEl.value = ''; }
+            statusEl.textContent = (res.d && res.d.error) || 'Something went wrong \u2014 try again'; return;
+          }
+          if (keyEl.value.trim()) { setKey(keyEl.value.trim()); keyEl.value = ''; keyBox.hidden = true; }
           statusEl.textContent = 'Thanks for signing! \u2665';
           msgEl.value = ''; countEl.textContent = '0/500';
           if (res.d.entry) {

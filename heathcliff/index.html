@@ -166,6 +166,40 @@
   .cal-day:disabled { border-color: transparent; opacity: .25; cursor: default; }
   .cal-day.sel { background: #ff7fb2; border-color: #ff7fb2; color: #141012; font-weight: 700; }
   .cal-blank { aspect-ratio: 1 / 1; }
+
+  /* comments box: same look as the homepage guestbook */
+  .guestbook form { margin: 0; }
+  .guestbook input[type=text], .guestbook input[type=password], .guestbook textarea {
+    display: block; width: 100%; box-sizing: border-box; padding: 10px;
+    background: #1f1a1d; color: #f3e9ee; border: 2px dashed #5fd0c2; border-radius: 2px;
+    font-family: "Courier Prime", monospace; font-size: 15px;
+  }
+  .guestbook input[type=text], .guestbook input[type=password] { margin-bottom: 10px; }
+  .guestbook textarea { min-height: 76px; resize: vertical; }
+  .guestbook input::placeholder, .guestbook textarea::placeholder { color: #f3e9ee; opacity: .5; }
+  .guestbook input:focus, .guestbook textarea:focus { outline: none; border-color: #ffd84a; }
+  .guestbook .gb-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+  .guestbook button {
+    background: transparent; color: #ffd84a; cursor: pointer;
+    border: 2px solid #ffd84a; border-radius: 2px; padding: 3px 20px;
+    font-family: "Permanent Marker", cursive; font-size: 17px;
+  }
+  .guestbook button:hover, .guestbook button:focus-visible { background: #ffd84a; color: #141012; outline: none; }
+  .guestbook button:disabled { opacity: .5; cursor: default; background: transparent; color: #ffd84a; }
+  .guestbook .gb-status { font-size: 13px; color: #ffd84a; min-height: 1em; }
+  .guestbook .gb-count { font-size: 12px; opacity: .55; margin-left: auto; }
+  .guestbook .gb-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .guestbook .gb-list { list-style: none; margin: 18px 0 0; padding: 0; max-height: 420px; overflow-y: auto; }
+  .guestbook .gb-list li { border-top: 2px dashed rgba(255,127,178,.45); padding: 12px 2px; }
+  .guestbook .gb-list li:last-child { padding-bottom: 2px; }
+  .guestbook .gb-who { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+  .guestbook .gb-name { color: #ff5b9a; font-weight: 700; word-break: break-word; }
+  .guestbook .gb-date { font-size: 12px; opacity: .55; white-space: nowrap; }
+  .guestbook .gb-msg { white-space: pre-wrap; word-break: break-word; }
+  .guestbook .gb-empty { font-size: 14px; opacity: .65; border-top: 2px dashed rgba(255,127,178,.45); padding-top: 12px; }
+  .guestbook[hidden], .guestbook [hidden] { display: none; }
+  .wrap > .comments h2 { color: #ffd84a; margin-bottom: 6px; }
+  .comments .cm-day { font-size: 13px; opacity: .7; margin-bottom: 14px; }
 </style>
 </head>
 <body>
@@ -204,6 +238,23 @@
       <img id="heathcliff" alt="Today's Heathcliff comic strip" style="display:none">
       <p id="heathcliff-fallback">Today's strip isn't up yet — <a href="https://www.gocomics.com/heathcliff" target="_blank" rel="noopener">read it on GoComics</a>.</p>
       <div class="caption">Updated daily · <a href="https://heathcliff.com/" target="_blank" rel="noopener">Heathcliff</a> © Heathcliff Enterprises, Inc.</div>
+    </div>
+
+    <div class="card guestbook comments">
+      <h2>What do you think?</h2>
+      <p class="cm-day" id="cm-day" aria-live="polite"></p>
+      <form id="cm-form" autocomplete="off" novalidate>
+        <input type="text" id="cm-name" name="name" maxlength="40" placeholder="Your name" aria-label="Your name" required>
+        <div id="cm-keybox" hidden><input type="password" id="cm-key" name="ownerkey" placeholder="Owner key" aria-label="Owner key" autocomplete="off"></div>
+        <textarea id="cm-message" name="message" maxlength="500" placeholder="Your opinion" aria-label="Your opinion" required></textarea>
+        <div class="gb-hp" aria-hidden="true"><label>Leave this empty <input type="text" id="cm-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div class="gb-row">
+          <button type="submit" id="cm-submit">post it</button>
+          <span class="gb-status" id="cm-status" role="status" aria-live="polite"></span>
+          <span class="gb-count" id="cm-count">0/500</span>
+        </div>
+      </form>
+      <ul class="gb-list" id="cm-list" aria-label="Comments"></ul>
     </div>
 
   </div>
@@ -313,6 +364,9 @@
         sync();
       }
 
+      // tells the comments box which day's strip is on show
+      function emitDay(k) { window.heathcliffDay = k; window.dispatchEvent(new CustomEvent('heathcliff-day', { detail: k })); }
+
       function sync() {
         var i = order.indexOf(effective());
         prevBtn.disabled = i <= 0;
@@ -320,6 +374,7 @@
         todayBtn.hidden = current === null;
         calBtn.textContent = current ? shortDate(current) : 'calendar';
         if (!pop.hidden) render();
+        emitDay(effective());
       }
 
       function render() {
@@ -381,10 +436,94 @@
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function (j) {
           days = j; order = Object.keys(days).sort();
-          if (order.length > 1) { ctrl.hidden = false; sync(); }
+          if (order.length > 1) ctrl.hidden = false;
+          if (order.length) sync(); else emitDay(new Date().toISOString().slice(0, 10));
         })
-        .catch(function () { /* no archive yet: the page simply shows today's strip */ });
+        .catch(function () { /* no archive yet: the page simply shows today's strip */ emitDay(new Date().toISOString().slice(0, 10)); });
     })();
+  </script>
+  <script>
+  /* comments: stored per day by the kasstaway-guestbook Cloudflare Worker (same one as the guestbook) */
+  (function () {
+    var API = 'https://kasstaway-guestbook.kasst98.workers.dev';
+    var form = document.getElementById('cm-form');
+    if (!form) return;
+    var nameEl = document.getElementById('cm-name'), msgEl = document.getElementById('cm-message'),
+        hpEl = document.getElementById('cm-website'), btn = document.getElementById('cm-submit'),
+        statusEl = document.getElementById('cm-status'), countEl = document.getElementById('cm-count'),
+        list = document.getElementById('cm-list'), dayEl = document.getElementById('cm-day'),
+        keyBox = document.getElementById('cm-keybox'), keyEl = document.getElementById('cm-key');
+    var opened = Date.now(), day = null, req = 0;
+    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function fmtDate(secs) { var d = new Date(secs * 1000); return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(-2); }
+    function ord(n) { var v = n % 100; return n + (['th','st','nd','rd'][(v - 20) % 10] || ['th','st','nd','rd'][v] || 'th'); }
+    function longDay(k) { var p = k.split('-'); return ord(+p[2]) + ' ' + MONTHS[+p[1] - 1] + ' ' + p[0]; }
+    function getKey() { try { return localStorage.getItem('kasstaway-owner-key') || ''; } catch (e) { return ''; } }
+    function setKey(k) { try { if (k) localStorage.setItem('kasstaway-owner-key', k); else localStorage.removeItem('kasstaway-owner-key'); } catch (e) {} }
+
+    function entryEl(e) {
+      var li = document.createElement('li'), who = document.createElement('div'), n = document.createElement('span'),
+          dt = document.createElement('span'), m = document.createElement('div');
+      who.className = 'gb-who'; n.className = 'gb-name'; dt.className = 'gb-date'; m.className = 'gb-msg';
+      n.textContent = e.name; dt.textContent = fmtDate(e.created_at); m.textContent = e.message;
+      who.append(n, dt); li.append(who, m); return li;
+    }
+    function showEmpty(text) { list.textContent = ''; var li = document.createElement('li'); li.className = 'gb-empty'; li.textContent = text; list.append(li); }
+    function render(items) {
+      list.textContent = '';
+      if (!items.length) { showEmpty('No comments yet — be the first!'); return; }
+      items.forEach(function (e) { list.append(entryEl(e)); });
+    }
+    function load() {
+      if (!day) { showEmpty('Loading comments…'); return; }
+      var mine = ++req, asked = day;
+      fetch(API + '/comments?day=' + encodeURIComponent(asked), { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function (d) { if (mine === req) render(d.comments || []); })
+        .catch(function () { if (mine === req) showEmpty('The comments couldn’t load right now — try again later.'); });
+    }
+    function setDay(k) {
+      if (!k || k === day) return;
+      day = k; dayEl.textContent = 'Comments for ' + longDay(k);
+      statusEl.textContent = ''; load();
+    }
+    window.addEventListener('heathcliff-day', function (e) { setDay(e.detail); });
+    if (window.heathcliffDay) setDay(window.heathcliffDay); else showEmpty('Loading comments…');
+
+    msgEl.addEventListener('input', function () { countEl.textContent = msgEl.value.length + '/500'; });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var name = nameEl.value.trim(), message = msgEl.value.trim();
+      if (!day) { statusEl.textContent = 'Hang on, still loading…'; return; }
+      if (!name) { statusEl.textContent = 'Add your name first'; nameEl.focus(); return; }
+      if (!message) { statusEl.textContent = 'Write your opinion first'; msgEl.focus(); return; }
+      var key = keyEl.value.trim() || getKey(), posting = day, headers = { 'Content-Type': 'application/json' };
+      if (key) headers.Authorization = 'Bearer ' + key;
+      btn.disabled = true; statusEl.textContent = 'Posting…';
+      fetch(API + '/comments', { method: 'POST', headers: headers,
+        body: JSON.stringify({ day: posting, name: name, message: message, website: hpEl.value, t: opened }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok) {
+            if (res.d && res.d.needKey) { keyBox.hidden = false; keyEl.focus(); }
+            if (res.status === 401) { setKey(''); keyEl.value = ''; }
+            statusEl.textContent = (res.d && res.d.error) || 'Something went wrong — try again';
+            return;
+          }
+          if (keyEl.value.trim()) { setKey(keyEl.value.trim()); keyEl.value = ''; keyBox.hidden = true; }
+          statusEl.textContent = 'Thanks for your opinion! ♥';
+          msgEl.value = ''; countEl.textContent = '0/500';
+          if (res.d.entry && posting === day) {
+            var empty = list.querySelector('.gb-empty'); if (empty) empty.remove();
+            list.insertBefore(entryEl(res.d.entry), list.firstChild); list.scrollTop = 0;
+          }
+        })
+        .catch(function () { statusEl.textContent = 'Couldn’t reach the comments — try again'; })
+        .then(function () { btn.disabled = false; });
+    });
+  })();
   </script>
   <script>
     // Paint lines wriggle like worms for as long as the mouse is over them, then settle back.

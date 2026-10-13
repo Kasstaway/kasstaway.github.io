@@ -473,7 +473,7 @@
     function showEmpty(text) { list.textContent = ''; var li = document.createElement('li'); li.className = 'gb-empty'; li.textContent = text; list.append(li); }
     function render(items) {
       list.textContent = '';
-      if (!items.length) { showEmpty('No comments yet — be the first!'); return; }
+      if (!items.length) { showEmpty('Will you be the first to share your wisdom?'); return; }
       items.forEach(function (e) { list.append(entryEl(e)); });
     }
     function load() {
